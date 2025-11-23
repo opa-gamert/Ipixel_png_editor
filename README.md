@@ -1,4 +1,7 @@
 # iPixel PNG Editor
+
+![iPixel Editor Screenshot](assets/screenshot.png)
+
 A lightweight, browser-based editor for creating pixel-perfect PNG icons for all **iPixel LED matrix formats**.  
 Designed to run 100% offline as a single HTML file — no installation required.
 
