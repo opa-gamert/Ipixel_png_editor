@@ -5,6 +5,8 @@
 A lightweight, browser-based editor for creating pixel-perfect PNG icons for all **iPixel LED matrix formats**.  
 Designed to run 100% offline as a single HTML file — no installation required.
 
+Note ! Only static PNG's for now, maybe in the future support for animated PNG's
+
 ---
 
 ## 🚀 Features
