@@ -1,0 +1,617 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<link rel="icon" href="favicon.ico">
+<link rel="icon" type="image/png" sizes="32x32" href="favicon_32.png">
+<link rel="icon" type="image/png" sizes="16x16" href="favicon_16.png">
+<link rel="apple-touch-icon" href="apple_touch_icon.png">
+<meta charset="UTF-8" />
+<title>O-G Ipixel png editor</title>
+<style>
+    :root {
+        font-family: system-ui, sans-serif;
+        background: #050608;
+        color: #f0f0f0;
+    }
+    body {
+        margin: 0;
+        padding: 16px;
+        background: radial-gradient(circle at top, #1a1c24, #050608 60%);
+        display: block;
+    }
+    .app {
+        width: 100%;
+        max-width: 1100px;
+        background: #0b0d11;
+        padding: 16px 20px 20px;
+        border-radius: 16px;
+        box-shadow: 0 20px 40px rgba(0,0,0,0.7);
+        box-sizing: border-box;
+        margin: 0;
+    }
+    .topbar, .middlebar, .scalebar {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        gap: 12px 20px;
+        margin-bottom: 14px;
+    }
+    .label {
+        font-size: 0.8rem;
+        color: #9ea3c7;
+        text-transform: uppercase;
+        letter-spacing: 0.06em;
+    }
+    button, select, input[type="color"] {
+        border-radius: 999px;
+        border: 1px solid #283148;
+        background: #111320;
+        color: #e0e4ff;
+        padding: 6px 14px;
+        cursor: pointer;
+        font-size: 0.9rem;
+        outline: none;
+    }
+    select {
+        padding-right: 28px;
+    }
+    button.small { padding: 4px 10px; font-size: 0.8rem; }
+    button:hover, select:hover { background: #18203a; }
+    button.active {
+        background: #2550ff;
+        border-color: #6580ff;
+    }
+    .palette {
+        display: flex;
+        gap: 6px;
+        flex-wrap: wrap;
+    }
+    .color-swatch {
+        width: 22px;
+        height: 22px;
+        border-radius: 4px;
+        border: 1px solid #333;
+        cursor: pointer;
+    }
+    .color-swatch:hover { outline: 2px solid #ffffff88; }
+
+    .canvas-wrapper {
+        padding: 10px 20px 4px 20px;
+        border-radius: 16px;
+        background: radial-gradient(circle at center, #141825 0, #050608 60%);
+        display: flex;
+        justify-content: flex-start;
+        overflow: visible;
+    }
+
+    #canvasContainer {
+        position: relative;
+    }
+
+    canvas#displayCanvas {
+        image-rendering: pixelated;
+        background: transparent;
+        display: block;
+    }
+
+    #statusText {
+        text-align: left;
+        margin-top: 12px;
+        font-size: 0.8rem;
+        color: #8b90b4;
+    }
+
+    .scale-controls {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        flex-wrap: wrap;
+    }
+    .scale-buttons button {
+        min-width: 44px;
+        text-align: center;
+    }
+    input[type="range"] {
+        -webkit-appearance: none;
+        width: 160px;
+        height: 4px;
+        border-radius: 999px;
+        background: #1a2035;
+        outline: none;
+    }
+    input[type="range"]::-webkit-slider-thumb {
+        -webkit-appearance: none;
+        width: 14px;
+        height: 14px;
+        border-radius: 50%;
+        background: #4c7dff;
+        border: 2px solid #ffffffaa;
+        cursor: pointer;
+    }
+    input[type="range"]::-moz-range-thumb {
+        width: 14px;
+        height: 14px;
+        border-radius: 50%;
+        background: #4c7dff;
+        border: 2px solid #ffffffaa;
+        cursor: pointer;
+    }
+</style>
+</head>
+<body>
+
+<div class="app">
+
+    <div class="topbar">
+        <span class="label">Canvas</span>
+        <select id="canvasSize">
+            <option value="16x16">16 × 16</option>
+            <option value="32x8">32 × 8</option>
+            <option value="32x16">32 × 16</option>
+            <option value="32x32" selected>32 × 32</option>
+            <option value="48x16">48 × 16</option>
+            <option value="60x16">60 × 16</option>
+            <option value="64x16">64 × 16</option>
+            <option value="64x20">64 × 20</option>
+            <option value="64x32">64 × 32</option>
+            <option value="80x16">80 × 16</option>
+            <option value="96x16">96 × 16</option>
+            <option value="128x16">128 × 16</option>
+            <option value="192x16">192 × 16</option>
+        </select>
+
+        <span class="label">Color</span>
+        <input type="color" id="colorPicker" value="#ffffff" />
+
+        <span class="label">Tool</span>
+        <button id="penTool" class="small active">Pen</button>
+        <button id="eraserTool" class="small">Eraser</button>
+
+        <button id="gridToggle" class="small active">LED grid</button>
+        <button id="clearBtn" class="small">Clear</button>
+        <button id="exportBtn" class="small">Export PNG</button>
+        <button id="importBtn" class="small">Import PNG</button>
+        <button id="githubBtn" class="small">GitHub</button>
+        <button id="licenseBtn" class="small">License</button>
+        <input id="fileInput" type="file" accept="image/png" style="display:none" />
+    </div>
+
+    <div class="middlebar">
+        <span class="label">Palette (16 colors)</span>
+        <div id="palette" class="palette"></div>
+    </div>
+
+    <div class="scalebar">
+        <span class="label">Scale</span>
+        <div class="scale-controls">
+            <div class="scale-buttons">
+                <button class="small" data-scale="4">4×</button>
+                <button class="small" data-scale="8">8×</button>
+                <button class="small" data-scale="12">12×</button>
+                <button class="small" data-scale="16">16×</button>
+            </div>
+            <input id="scaleRange" type="range" min="4" max="20" step="1" value="12" />
+            <span id="scaleLabel" style="font-size:0.8rem;color:#c0c4ff;">12×</span>
+        </div>
+    </div>
+
+    <div class="canvas-wrapper">
+        <div id="canvasContainer">
+            <canvas id="displayCanvas"></canvas>
+        </div>
+    </div>
+
+    <div id="statusText">Size: 32×32 • Pen • LED grid on • Scale: 12×</div>
+
+</div>
+
+<script>
+// ====== STATE ======
+let width  = 32;
+let height = 32;
+let tool = "pen";
+let drawing = false;
+let gridOn = true;
+let currentColor = "#ffffff";
+let scale = 12;
+
+// fixed background color for LED backplate: rgb(25,25,25)
+const BG_COLOR = { r: 25, g: 25, b: 25 };
+
+// logical (offscreen) canvas with real pixel data
+const logicalCanvas = document.createElement("canvas");
+let ctx = logicalCanvas.getContext("2d");
+
+// display canvas
+const displayCanvas = document.getElementById("displayCanvas");
+const dctx = displayCanvas.getContext("2d");
+
+const scaleRange  = document.getElementById("scaleRange");
+const scaleLabel  = document.getElementById("scaleLabel");
+const statusText  = document.getElementById("statusText");
+const fileInput   = document.getElementById("fileInput");
+const sizeSelect  = document.getElementById("canvasSize");
+
+// ====== HELPERS ======
+function resizeCanvas(w, h, preserve = false) {
+    let oldData = null;
+    let oldW = width;
+    let oldH = height;
+
+    if (preserve) {
+        oldW = width;
+        oldH = height;
+        oldData = ctx.getImageData(0, 0, oldW, oldH);
+    }
+
+    width = w;
+    height = h;
+    logicalCanvas.width = width;
+    logicalCanvas.height = height;
+    ctx = logicalCanvas.getContext("2d");
+
+    if (preserve && oldData) {
+        ctx.putImageData(oldData, 0, 0);
+    }
+
+    renderDisplay();
+    updateStatus();
+}
+
+function updateDisplaySize() {
+    displayCanvas.width = width * scale;
+    displayCanvas.height = height * scale;
+}
+
+// main render: convert logicalCanvas to LED or flat view
+function renderDisplay() {
+    updateDisplaySize();
+
+    // panel background
+    dctx.fillStyle = "#050608";
+    dctx.fillRect(0, 0, displayCanvas.width, displayCanvas.height);
+
+    const imgData = ctx.getImageData(0, 0, width, height).data;
+    const cellSize = scale;
+    const ledRadius = cellSize * 0.38;
+
+    for (let y = 0; y < height; y++) {
+        for (let x = 0; x < width; x++) {
+            const idx = (y * width + x) * 4;
+            const r = imgData[idx];
+            const g = imgData[idx + 1];
+            const b = imgData[idx + 2];
+            const a = imgData[idx + 3];
+
+            const isOffPixel = (a === 0);
+
+            const sx = x * cellSize;
+            const sy = y * cellSize;
+            const cx = sx + cellSize / 2;
+            const cy = sy + cellSize / 2;
+
+            // background square (backplate)
+            dctx.fillStyle = `rgb(${BG_COLOR.r},${BG_COLOR.g},${BG_COLOR.b})`;
+            dctx.fillRect(sx, sy, cellSize, cellSize);
+
+            if (gridOn) {
+                if (!isOffPixel) {
+                    // on-pixel: colored LED + glow
+                    const rLED = r;
+                    const gLED = g;
+                    const bLED = b;
+
+                    // glow
+                    const grad = dctx.createRadialGradient(
+                        cx, cy, ledRadius * 0.3,
+                        cx, cy, ledRadius * 1.8
+                    );
+                    grad.addColorStop(0, `rgba(${rLED},${gLED},${bLED},0.4)`);
+                    grad.addColorStop(1, `rgba(${rLED},${gLED},${bLED},0)`);
+                    dctx.fillStyle = grad;
+                    dctx.beginPath();
+                    dctx.arc(cx, cy, ledRadius * 1.8, 0, Math.PI * 2);
+                    dctx.fill();
+
+                    // core LED
+                    dctx.fillStyle = `rgb(${rLED},${gLED},${bLED})`;
+                    dctx.beginPath();
+                    dctx.arc(cx, cy, ledRadius, 0, Math.PI * 2);
+                    dctx.fill();
+                } else {
+                    // off-pixel: dark LED dot, no glow
+                    dctx.fillStyle = "rgb(5,5,5)";
+                    dctx.beginPath();
+                    dctx.arc(cx, cy, ledRadius, 0, Math.PI * 2);
+                    dctx.fill();
+                }
+            } else {
+                // flat view (no LED grid)
+                if (!isOffPixel) {
+                    dctx.fillStyle = `rgb(${r},${g},${b})`;
+                } else {
+                    dctx.fillStyle = `rgb(${BG_COLOR.r},${BG_COLOR.g},${BG_COLOR.b})`;
+                }
+                dctx.fillRect(sx, sy, cellSize, cellSize);
+            }
+        }
+    }
+}
+
+// translate mouse position on displayCanvas to logical pixel
+function getPixelPos(evt) {
+    const rect = displayCanvas.getBoundingClientRect();
+    const cellW = rect.width / width;
+    const cellH = rect.height / height;
+    const x = Math.floor((evt.clientX - rect.left) / cellW);
+    const y = Math.floor((evt.clientY - rect.top) / cellH);
+    if (x < 0 || y < 0 || x >= width || y >= height) return null;
+    return {x, y};
+}
+
+function drawAt(evt) {
+    const p = getPixelPos(evt);
+    if (!p) return;
+    if (tool === "pen") {
+        ctx.fillStyle = currentColor;
+        ctx.fillRect(p.x, p.y, 1, 1);
+    } else {
+        ctx.clearRect(p.x, p.y, 1, 1);
+    }
+    renderDisplay();
+}
+
+// ====== DRAW EVENTS ======
+displayCanvas.addEventListener("mousedown", e => { drawing = true; drawAt(e); });
+window.addEventListener("mouseup", () => { drawing = false; });
+displayCanvas.addEventListener("mousemove", e => { if (drawing) drawAt(e); });
+
+// ====== PALETTE ======
+const paletteColors = [
+    "#FFFFFF","#000000","#FF0000","#00FF00",
+    "#0080FF","#FFFF00","#FF00FF","#00FFFF",
+    "#FF8000","#8000FF","#2EC4FF","#0010A0",
+    "#A0FF00","#FF80C0","#808080","#C0C0C0"
+];
+const paletteDiv = document.getElementById("palette");
+
+paletteColors.forEach(col => {
+    const sw = document.createElement("div");
+    sw.className = "color-swatch";
+    sw.style.backgroundColor = col;
+    sw.addEventListener("click", () => {
+        currentColor = col;
+        document.getElementById("colorPicker").value = col;
+    });
+    paletteDiv.appendChild(sw);
+});
+
+// ====== UI CONTROLS ======
+document.getElementById("colorPicker").addEventListener("input", e => {
+    currentColor = e.target.value;
+});
+
+document.getElementById("penTool").addEventListener("click", () => {
+    tool = "pen";
+    penTool.classList.add("active");
+    eraserTool.classList.remove("active");
+    updateStatus();
+});
+
+document.getElementById("eraserTool").addEventListener("click", () => {
+    tool = "eraser";
+    eraserTool.classList.add("active");
+    penTool.classList.remove("active");
+    updateStatus();
+});
+
+document.getElementById("gridToggle").addEventListener("click", () => {
+    gridOn = !gridOn;
+    gridToggle.classList.toggle("active", gridOn);
+    gridToggle.textContent = gridOn ? "LED grid" : "Flat";
+    renderDisplay();
+    updateStatus();
+});
+
+document.getElementById("clearBtn").addEventListener("click", () => {
+    ctx.clearRect(0, 0, width, height);
+    renderDisplay();
+});
+
+sizeSelect.addEventListener("change", () => {
+    const [w, h] = sizeSelect.value.split("x").map(v => parseInt(v, 10));
+    resizeCanvas(w, h);
+});
+
+scaleRange.addEventListener("input", () => {
+    scale = parseInt(scaleRange.value, 10);
+    scaleLabel.textContent = scale + "×";
+    renderDisplay();
+    updateStatus();
+});
+
+document.querySelectorAll(".scale-buttons button").forEach(btn => {
+    btn.addEventListener("click", () => {
+        const val = parseInt(btn.getAttribute("data-scale"), 10);
+        scale = val;
+        scaleRange.value = val;
+        scaleLabel.textContent = val + "×";
+        renderDisplay();
+        updateStatus();
+    });
+});
+
+// GitHub link
+document.getElementById("githubBtn").addEventListener("click", () => {
+    window.open("https://github.com/opa-gamert", "_blank");
+});
+
+// License popup
+document.getElementById("licenseBtn").addEventListener("click", () => {
+    const msg = `
+iPixel Icon Editor
+
+Copyright © ${new Date().getFullYear()} opa-gamert
+
+Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated documentation files (the "Software"), to deal in the Software without restriction, including without limitation the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software, and to permit persons to whom the Software is furnished to do so, subject to the following conditions:
+
+1. The above copyright notice and this permission notice shall be included in all copies or substantial portions of the Software.
+2. Any derivative works or forks must clearly mention the original source repository: https://github.com/opa-gamert
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+`;
+    alert(msg);
+});
+
+// ====== EXPORT / IMPORT ======
+document.getElementById("exportBtn").addEventListener("click", () => {
+    const off = document.createElement("canvas");
+    off.width = width;
+    off.height = height;
+    const offCtx = off.getContext("2d");
+    offCtx.clearRect(0, 0, width, height);
+    offCtx.drawImage(logicalCanvas, 0, 0);
+
+    const a = document.createElement("a");
+    const ts = new Date().toISOString().replace(/[:.]/g, "-");
+    a.download = `ipixel_${width}x${height}_${ts}.png`;
+    a.href = off.toDataURL("image/png");
+    a.click();
+});
+
+document.getElementById("importBtn").addEventListener("click", () => {
+    fileInput.value = "";
+    fileInput.click();
+});
+
+fileInput.addEventListener("change", () => {
+    const file = fileInput.files[0];
+    if (!file) return;
+    if (file.type !== "image/png") {
+        alert("Only PNG files are supported.");
+        return;
+    }
+
+    const reader = new FileReader();
+    reader.onload = (ev) => {
+        const img = new Image();
+        img.onload = () => {
+            handleImportedImage(img);
+        };
+        img.src = ev.target.result;
+    };
+    reader.readAsDataURL(file);
+});
+
+function handleImportedImage(img) {
+    const tmp = document.createElement("canvas");
+    tmp.width = img.naturalWidth;
+    tmp.height = img.naturalHeight;
+    const tctx = tmp.getContext("2d");
+    tctx.clearRect(0,0,tmp.width,tmp.height);
+    tctx.drawImage(img, 0, 0);
+
+    let {croppedCanvas, cw, ch} = autoCropPreserveTransparent(tmp);
+
+    if (!croppedCanvas) {
+        alert("Image contains no visible pixels (fully transparent).");
+        return;
+    }
+
+    // if imported size matches one of the presets, switch canvas automatically
+    const preset = `${cw}x${ch}`;
+    const options = Array.from(sizeSelect.options).map(o => o.value);
+    if (options.includes(preset)) {
+        sizeSelect.value = preset;
+        resizeCanvas(cw, ch);
+    }
+
+    if (cw !== width || ch !== height) {
+        const msg = `PNG after cropping is ${cw}×${ch}.
+` +
+                    `Current canvas is ${width}×${height}.
+
+` +
+                    `Do you want to scale the PNG to the current canvas size?`;
+        const doScale = confirm(msg);
+        if (!doScale) return;
+
+        ctx.clearRect(0,0,width,height);
+        ctx.imageSmoothingEnabled = false;
+        ctx.drawImage(croppedCanvas, 0, 0, cw, ch, 0, 0, width, height);
+    } else {
+        ctx.clearRect(0,0,width,height);
+        ctx.imageSmoothingEnabled = false;
+        ctx.drawImage(croppedCanvas, 0, 0);
+    }
+    renderDisplay();
+}
+
+// cropping that preserves transparency (no mapping to BG_COLOR)
+function autoCropPreserveTransparent(sourceCanvas) {
+    const w = sourceCanvas.width;
+    const h = sourceCanvas.height;
+    const sctx = sourceCanvas.getContext("2d");
+    const imgData = sctx.getImageData(0, 0, w, h);
+    const data = imgData.data;
+
+    let minX = w, minY = h, maxX = -1, maxY = -1;
+
+    for (let y = 0; y < h; y++) {
+        for (let x = 0; x < w; x++) {
+            const idx = (y * w + x) * 4;
+            const a = data[idx + 3];
+            if (a > 0) {
+                if (x < minX) minX = x;
+                if (y < minY) minY = y;
+                if (x > maxX) maxX = x;
+                if (y > maxY) maxY = y;
+            }
+        }
+    }
+
+    if (maxX < minX || maxY < minY) {
+        return {croppedCanvas: null, cw: 0, ch: 0};
+    }
+
+    const cw = maxX - minX + 1;
+    const ch = maxY - minY + 1;
+
+    const cropped = document.createElement("canvas");
+    cropped.width = cw;
+    cropped.height = ch;
+    const cctx = cropped.getContext("2d");
+
+    const croppedData = cctx.createImageData(cw, ch);
+    const cArr = croppedData.data;
+
+    for (let y = 0; y < ch; y++) {
+        for (let x = 0; x < cw; x++) {
+            const srcX = x + minX;
+            const srcY = y + minY;
+            const sIdx = (srcY * w + srcX) * 4;
+            const dIdx = (y * cw + x) * 4;
+
+            cArr[dIdx]     = data[sIdx];
+            cArr[dIdx + 1] = data[sIdx + 1];
+            cArr[dIdx + 2] = data[sIdx + 2];
+            cArr[dIdx + 3] = data[sIdx + 3];
+        }
+    }
+
+    cctx.putImageData(croppedData, 0, 0);
+    return {croppedCanvas: cropped, cw, ch};
+}
+
+function updateStatus() {
+    statusText.textContent =
+        `Size: ${width}×${height} • ${tool === "pen" ? "Pen" : "Eraser"} • ` +
+        `${gridOn ? "LED grid on" : "Flat view"} • Scale: ${scale}×`;
+}
+
+// init
+resizeCanvas(32, 32);
+</script>
+
+</body>
+</html>
