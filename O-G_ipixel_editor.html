@@ -273,30 +273,40 @@ function adler32(data) {
 
 // ====== HELPER: zlib + deflate "stored" (ongecomprimeerd) ======
 //  - zlib header: 0x78 0x01
-//  - 1 stored-block (BFINAL=1, BTYPE=00), met LEN/NLEN + ruwe data
+//  - stored-blocks (BTYPE=00) van maximaal 65535 bytes elk; laatste met
+//    BFINAL=1, daarvoor BFINAL=0 — werkt ook voor raw > 65535 bytes
 //  - Adler-32 aan het einde
 function zlibEncodeStored(raw) {
+    const MAX_BLOCK = 0xFFFF; // max lengte van 1 stored block in deflate
     const len = raw.length;
-    // zlib header (2) + deflate header (1) + LEN (2) + NLEN (2) + data + adler (4)
-    const out = new Uint8Array(2 + 1 + 2 + 2 + len + 4);
+    const blockCount = Math.ceil(len / MAX_BLOCK) || 1;
+    // zlib header (2) + per block header (5: BFINAL + LEN + NLEN) + data + adler (4)
+    const out = new Uint8Array(2 + blockCount * 5 + len + 4);
     let p = 0;
 
     // zlib header
     out[p++] = 0x78; // CMF
     out[p++] = 0x01; // FLG (no compression / low)
 
-    // deflate stored block
-    out[p++] = 0x01; // BFINAL=1, BTYPE=00 (stored)
+    // deflate stored blocks
+    let off = 0;
+    for (let i = 0; i < blockCount; i++) {
+        const size = Math.min(MAX_BLOCK, len - off);
+        const last = (i === blockCount - 1);
 
-    out[p++] = len & 0xFF;
-    out[p++] = (len >>> 8) & 0xFF;
+        out[p++] = last ? 0x01 : 0x00; // BFINAL=1 op laatste, anders 0; BTYPE=00 (stored)
 
-    const nlen = (~len) & 0xFFFF;
-    out[p++] = nlen & 0xFF;
-    out[p++] = (nlen >>> 8) & 0xFF;
+        out[p++] = size & 0xFF;
+        out[p++] = (size >>> 8) & 0xFF;
 
-    out.set(raw, p);
-    p += len;
+        const nlen = (~size) & 0xFFFF;
+        out[p++] = nlen & 0xFF;
+        out[p++] = (nlen >>> 8) & 0xFF;
+
+        out.set(raw.subarray(off, off + size), p);
+        p += size;
+        off += size;
+    }
 
     const ad = adler32(raw);
     out[p++] = (ad >>> 24) & 0xFF;
